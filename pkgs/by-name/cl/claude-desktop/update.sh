@@ -1,7 +1,8 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p coreutils curl gawk jq nix
+#!nix-shell -i bash --quiet -p coreutils curl gawk jq nix
 # shellcheck shell=bash
 #
+# --quiet above keeps nix-shell's own fetch/eval chatter out of the output.
 # Bumps the pinned version, url and hash in sources.json, one entry per system.
 set -euo pipefail
 
