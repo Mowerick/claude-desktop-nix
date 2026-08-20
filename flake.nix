@@ -13,11 +13,21 @@
         "aarch64-linux"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
+
+      # Upstream is unfree, so this flake's own outputs have to accept that or
+      # nothing here evaluates without `--impure` plus NIXPKGS_ALLOW_UNFREE.
+      # Only these outputs are affected; overlay consumers keep their own config.
+      pkgsFor =
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
     in
     {
       packages = forAllSystems (system: {
         default = self.packages.${system}.claude-desktop;
-        claude-desktop = nixpkgs.legacyPackages.${system}.callPackage ./default.nix { };
+        claude-desktop = (pkgsFor system).callPackage ./default.nix { };
       });
 
       overlays.default = final: prev: {

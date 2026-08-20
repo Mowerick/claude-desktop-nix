@@ -34,6 +34,11 @@ it:
   `pkgs.callPackage ./default.nix { }` still works.
 - `flake.nix` — thin wrapper: `packages.<system>.claude-desktop`/`default`,
   `overlays.default`, and `checks.<system>` as a re-export of `passthru.tests`.
+  It `import`s nixpkgs with `config.allowUnfree = true` rather than using
+  `legacyPackages`: upstream is unfree, and without that every command here
+  would need `--impure` plus `NIXPKGS_ALLOW_UNFREE=1`, since pure eval refuses
+  to read the environment. Overlay consumers are unaffected — the overlay uses
+  their `pkgs`, hence their config.
 
 ## How the package works
 

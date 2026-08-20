@@ -84,9 +84,10 @@ same script daily and opens a pull request when anything changed.
 - `x86_64-linux` and `aarch64-linux` only (matches upstream's `.deb`
   architectures); see [Platform support](#platform-support) for what has
   actually been tested.
-- Unfree (`license = lib.licenses.unfree`) — set
-  `nixpkgs.config.allowUnfree = true` (or `allowUnfreePredicate`) wherever you
-  consume this package.
+- Unfree (`license = lib.licenses.unfree`). `packages.<system>` builds its own
+  nixpkgs with `allowUnfree`, so `nix run`/`nix build` on this flake need no
+  extra flags; via the overlay it is your config that decides, so set
+  `nixpkgs.config.allowUnfree = true` (or `allowUnfreePredicate`) there.
 - The package lives under `pkgs/by-name/cl/claude-desktop/`, written to nixpkgs
   convention so upstreaming it is a directory copy; the flake, `default.nix`
   and CI stay outside it.
