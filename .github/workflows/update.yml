@@ -23,27 +23,20 @@ jobs:
       # Only needed for `nix hash convert`; jq is preinstalled on runners.
       - uses: DeterminateSystems/nix-installer-action@main
 
+      # Reports the resulting pins via $GITHUB_OUTPUT; only it knows sources.json's schema.
       - name: Bump pinned versions
+        id: bump
         run: ./$PACKAGE_DIR/update.sh
-
-      - name: Read pinned versions
-        id: versions
-        run: |
-          {
-            echo "amd64=$(jq -r '."x86_64-linux".version' "$PACKAGE_DIR/sources.json")"
-            echo "arm64=$(jq -r '."aarch64-linux".version' "$PACKAGE_DIR/sources.json")"
-          } >> "$GITHUB_OUTPUT"
 
       - uses: peter-evans/create-pull-request@v7
         with:
           branch: update-claude-desktop
-          commit-message: "chore: update claude-desktop (amd64 ${{ steps.versions.outputs.amd64 }}, arm64 ${{ steps.versions.outputs.arm64 }})"
-          title: "chore: update claude-desktop (amd64 ${{ steps.versions.outputs.amd64 }}, arm64 ${{ steps.versions.outputs.arm64 }})"
+          commit-message: "chore: update claude-desktop (${{ steps.bump.outputs.summary }})"
+          title: "chore: update claude-desktop (${{ steps.bump.outputs.summary }})"
           body: |
             Automated bump from Anthropic's apt `Packages` indexes.
 
-            - `x86_64-linux`: ${{ steps.versions.outputs.amd64 }}
-            - `aarch64-linux`: ${{ steps.versions.outputs.arm64 }}
+            Pins: ${{ steps.bump.outputs.summary }}
 
             The systems are pinned independently, so only the one(s) with a new
             upstream release will show a diff.
