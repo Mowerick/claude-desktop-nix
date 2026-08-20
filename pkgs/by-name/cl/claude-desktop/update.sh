@@ -1,33 +1,19 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p coreutils curl gawk git jq nix
+#!nix-shell -i bash -p coreutils curl gawk jq nix
 # shellcheck shell=bash
 #
 # Wired up as passthru.updateScript, so `nix-shell maintainers/scripts/update.nix
-# --argstr package claude-desktop` can drive it from a nixpkgs checkout. That
-# runner executes update scripts with the repo root as cwd and no guaranteed
-# PATH, hence the nix-shell shebang and the sources.json lookup below.
+# --argstr package claude-desktop` can drive it. That runner executes update
+# scripts with the repo root as cwd and no guaranteed PATH, hence the nix-shell
+# shebang and the relative sources path below.
 set -euo pipefail
 
-# Located rather than hardcoded: this repo keeps the package in
-# pkgs/claude-desktop, nixpkgs would keep it in pkgs/by-name/cl/claude-desktop.
-find_sources() {
-  local root hit
+sources=pkgs/by-name/cl/claude-desktop/sources.json
 
-  if [ -n "${CLAUDE_DESKTOP_SOURCES:-}" ]; then
-    echo "$CLAUDE_DESKTOP_SOURCES"
-    return 0
-  fi
-
-  root=$(git rev-parse --show-toplevel)
-  hit=$(git -C "$root" ls-files '*claude-desktop/sources.json' | head -n1)
-
-  if [ -z "$hit" ]; then
-    echo "update.sh: no claude-desktop/sources.json tracked under $root" >&2
-    return 1
-  fi
-
-  echo "$root/$hit"
-}
+if [ ! -f "$sources" ]; then
+  echo "update.sh: $sources not found — run from the repo root" >&2
+  exit 1
+fi
 
 to_sri() {
   nix hash convert --hash-algo sha256 --to sri "$1" 2>/dev/null ||
@@ -35,7 +21,7 @@ to_sri() {
 }
 
 # Prints the apt `Packages` index for $1's Debian arch. Kept free of any parsing
-# so pin_from_index can be tested offline.
+# so pin_from_index stays a pure stdin filter.
 fetch_index() {
   local system="$1" apt_base deb_arch
 
@@ -67,10 +53,6 @@ pin_from_index() {
   ' <<<"$index"
 }
 
-# Appended to by update_system, consumed by the summary at the end.
-summary_parts=()
-changed=false
-
 update_system() {
   local system="$1" apt_base deb_arch current pin latest sha256_hex filename hash_sri tmp
 
@@ -84,14 +66,11 @@ update_system() {
   fi
   read -r latest sha256_hex filename <<<"$pin"
 
-  summary_parts+=("$deb_arch $latest")
-
   if [ "$current" = "$latest" ]; then
     echo "$system: already up to date: $current"
     return 0
   fi
 
-  changed=true
   hash_sri=$(to_sri "$sha256_hex")
   echo "$system: $current -> $latest ($hash_sri)"
 
@@ -102,20 +81,11 @@ update_system() {
   mv "$tmp" "$sources"
 }
 
-# Guarded so ./tests/parse-index.sh can source the functions above.
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  sources=$(find_sources)
+# amd64 and arm64 are published independently, so each system is bumped on its
+# own. The list is read up front: a failing jq inside a `for` word list would
+# not trip `set -e`.
+mapfile -t systems < <(jq -r '.systems | keys[]' "$sources")
 
-  for system in $(jq -r '.systems | keys[]' "$sources"); do
-    update_system "$system"
-  done
-
-  # CI builds its PR title from this, so the pin format stays private to this script.
-  if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    summary=$(printf '%s, ' "${summary_parts[@]}")
-    {
-      echo "summary=${summary%, }"
-      echo "changed=$changed"
-    } >>"$GITHUB_OUTPUT"
-  fi
-fi
+for system in "${systems[@]}"; do
+  update_system "$system"
+done
