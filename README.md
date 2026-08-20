@@ -54,6 +54,26 @@ Or via the overlay:
 
 then reference `pkgs.claude-desktop` as usual.
 
+## Hacking
+
+```
+nix build .#claude-desktop
+nix flake check
+```
+
+`checks.<system>` is a re-export of the package's `passthru.tests`. The app
+cannot be launched from a build sandbox — `buildFHSEnv` needs bwrap, there is
+no display, and the payload is unpatched — so the tests assert the install
+layout (launcher, Electron flags, `.desktop` entry, icons, main binary) and
+everything beyond that is verified by launching it by hand.
+
+On an x86_64 machine without binfmt emulation, the `aarch64-linux` output can
+be evaluated but not built:
+
+```
+nix eval .#packages.aarch64-linux.claude-desktop.drvPath
+```
+
 ## Updating
 
 Anthropic's apt repository has no "latest" alias — `sources.json` pins an
@@ -65,10 +85,10 @@ from the repo root with:
 ./pkgs/by-name/cl/claude-desktop/update.sh
 ```
 
-The `nix-shell` shebang pulls in `curl`, `jq` and `nix` itself, so nothing has
-to be installed first (it needs `<nixpkgs>` on `NIX_PATH`; run it as `bash
-pkgs/by-name/cl/claude-desktop/update.sh` to use the tools already on your
-`PATH` instead). It is also wired up as `passthru.updateScript`, so a nixpkgs
+The `nix-shell` shebang pulls in `curl`, `gawk`, `jq` and `nix` itself, so
+nothing has to be installed first (it needs `<nixpkgs>` on `NIX_PATH`; run it
+as `bash pkgs/by-name/cl/claude-desktop/update.sh` to use the tools already on
+your `PATH` instead). It is also wired up as `passthru.updateScript`, so a nixpkgs
 checkout can drive it with `maintainers/scripts/update.nix`. It reads the current
 version/SHA256 for each architecture straight out of Anthropic's apt `Packages`
 indexes and rewrites `sources.json` in place. Review the diff, then commit.
@@ -89,7 +109,7 @@ same script daily and opens a pull request when anything changed.
   extra flags; via the overlay it is your config that decides, so set
   `nixpkgs.config.allowUnfree = true` (or `allowUnfreePredicate`) there.
 - The package lives under `pkgs/by-name/cl/claude-desktop/`, written to nixpkgs
-  convention so upstreaming it is a directory copy; the flake, `default.nix`
+  convention so upstreaming it, is a directory copy; the flake, `default.nix`
   and CI stay outside it.
 - Unofficial: not affiliated with or endorsed by Anthropic. Packaging follows
   whatever Anthropic ships in their apt repo; behavior of the app itself is
