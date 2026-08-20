@@ -26,7 +26,9 @@ jobs:
       # Reports the resulting pins via $GITHUB_OUTPUT; only it knows sources.json's schema.
       - name: Bump pinned versions
         id: bump
-        run: ./$PACKAGE_DIR/update.sh
+        # Invoked through bash so the nix-shell shebang is bypassed: runners
+        # already have curl/jq/git, and no <nixpkgs> channel is configured.
+        run: bash ./$PACKAGE_DIR/update.sh
 
       - uses: peter-evans/create-pull-request@v7
         with:

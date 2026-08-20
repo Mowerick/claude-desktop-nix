@@ -1,5 +1,33 @@
-#!/usr/bin/env bash
+#!/usr/bin/env nix-shell
+#!nix-shell -i bash -p coreutils curl gawk git jq nix
+# shellcheck shell=bash
+#
+# Wired up as passthru.updateScript, so `nix-shell maintainers/scripts/update.nix
+# --argstr package claude-desktop` can drive it from a nixpkgs checkout. That
+# runner executes update scripts with the repo root as cwd and no guaranteed
+# PATH, hence the nix-shell shebang and the sources.json lookup below.
 set -euo pipefail
+
+# Located rather than hardcoded: this repo keeps the package in
+# pkgs/claude-desktop, nixpkgs would keep it in pkgs/by-name/cl/claude-desktop.
+find_sources() {
+  local root hit
+
+  if [ -n "${CLAUDE_DESKTOP_SOURCES:-}" ]; then
+    echo "$CLAUDE_DESKTOP_SOURCES"
+    return 0
+  fi
+
+  root=$(git rev-parse --show-toplevel)
+  hit=$(git -C "$root" ls-files '*claude-desktop/sources.json' | head -n1)
+
+  if [ -z "$hit" ]; then
+    echo "update.sh: no claude-desktop/sources.json tracked under $root" >&2
+    return 1
+  fi
+
+  echo "$root/$hit"
+}
 
 to_sri() {
   nix hash convert --hash-algo sha256 --to sri "$1" 2>/dev/null ||
@@ -76,7 +104,7 @@ update_system() {
 
 # Guarded so ./tests/parse-index.sh can source the functions above.
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  sources="$(git rev-parse --show-toplevel)/pkgs/claude-desktop/sources.json"
+  sources=$(find_sources)
 
   for system in $(jq -r '.systems | keys[]' "$sources"); do
     update_system "$system"
