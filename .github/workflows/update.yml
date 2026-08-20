@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 env:
-  PACKAGE_DIR: pkgs/claude-desktop
+  PACKAGE_DIR: pkgs/by-name/cl/claude-desktop
 
 jobs:
   update:

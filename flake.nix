@@ -41,7 +41,7 @@
                 ];
               }
               ''
-                bash ${./pkgs/claude-desktop}/tests/parse-index.sh
+                bash ${./pkgs/by-name/cl/claude-desktop}/tests/parse-index.sh
                 touch $out
               '';
         }
