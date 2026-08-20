@@ -1,0 +1,50 @@
+name: update
+
+# Nothing upstream signals a new release (see update.sh), so poll daily and
+# open a PR when the pins move.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PACKAGE_DIR: pkgs/claude-desktop
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only needed for `nix hash convert`; jq is preinstalled on runners.
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Bump pinned versions
+        run: ./$PACKAGE_DIR/update.sh
+
+      - name: Read pinned versions
+        id: versions
+        run: |
+          {
+            echo "amd64=$(jq -r '."x86_64-linux".version' "$PACKAGE_DIR/sources.json")"
+            echo "arm64=$(jq -r '."aarch64-linux".version' "$PACKAGE_DIR/sources.json")"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: update-claude-desktop
+          commit-message: "chore: update claude-desktop (amd64 ${{ steps.versions.outputs.amd64 }}, arm64 ${{ steps.versions.outputs.arm64 }})"
+          title: "chore: update claude-desktop (amd64 ${{ steps.versions.outputs.amd64 }}, arm64 ${{ steps.versions.outputs.arm64 }})"
+          body: |
+            Automated bump from Anthropic's apt `Packages` indexes.
+
+            - `x86_64-linux`: ${{ steps.versions.outputs.amd64 }}
+            - `aarch64-linux`: ${{ steps.versions.outputs.arm64 }}
+
+            The systems are pinned independently, so only the one(s) with a new
+            upstream release will show a diff.
+          delete-branch: true

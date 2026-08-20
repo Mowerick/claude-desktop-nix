@@ -1,0 +1,12 @@
+{
+  "x86_64-linux": {
+    "deb": "amd64",
+    "version": "1.32885.1",
+    "hash": "sha256-+KXd6nyMvnaVic8ZwuGDLV1TKrGb+CAmIbqVfJNRovw="
+  },
+  "aarch64-linux": {
+    "deb": "arm64",
+    "version": "1.32885.1",
+    "hash": "sha256-XaOBVpxbCcrPyDyZKSAYEgfKRf0ScOIGVN17shxdhVI="
+  }
+}
