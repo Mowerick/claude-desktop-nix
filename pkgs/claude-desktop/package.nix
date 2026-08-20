@@ -50,11 +50,8 @@
   nodejs,
   python3,
   uv,
-  # Cowork VM
-  qemu,
-  virtiofsd,
   claude-desktop-unwrapped ? callPackage ./unwrapped.nix { },
-  ovmfLayout ? callPackage ./ovmf-layout.nix { },
+  coworkRuntime ? callPackage ./cowork-runtime.nix { },
 }:
 
 let
@@ -130,15 +127,9 @@ buildFHSEnv {
       coreutils
       git
       cacert
-
-      # Cowork's VM: qemu-system-{x86_64,aarch64} on PATH (nixpkgs' qemu builds
-      # every target), virtiofsd at /usr/libexec or /usr/bin, firmware from
-      # ./ovmf-layout.nix. /dev/kvm comes in via bwrap's --dev-bind, so the
-      # host user only needs to be in the kvm group.
-      qemu
-      virtiofsd
-      ovmfLayout
-    ];
+    ]
+    # Cowork's VM stack; see ./cowork-runtime.nix.
+    ++ coworkRuntime;
 
   extraInstallCommands = ''
     mv $out/bin/${pname} $out/bin/.${pname}-fhs
@@ -156,6 +147,8 @@ buildFHSEnv {
 
   passthru = {
     inherit unwrapped;
+    # Rewrites sources.json in a checkout; meaningless from the store.
+    updateScript = ./update.sh;
   };
 
   # buildFHSEnv does not inherit meta from its inputs.
