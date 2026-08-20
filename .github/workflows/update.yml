@@ -13,6 +13,8 @@ permissions:
 
 env:
   PACKAGE_DIR: pkgs/by-name/cl/claude-desktop
+  # update.sh's nix-shell shebang resolves its own dependencies against this.
+  NIX_PATH: nixpkgs=channel:nixos-unstable
 
 jobs:
   update:
@@ -20,25 +22,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Only needed for `nix hash convert`; jq is preinstalled on runners.
       - uses: DeterminateSystems/nix-installer-action@main
 
-      # Reports the resulting pins via $GITHUB_OUTPUT; only it knows sources.json's schema.
+      # Run exactly as a nixpkgs maintainer would: from the repo root, through
+      # the shebang.
       - name: Bump pinned versions
-        id: bump
-        # Invoked through bash so the nix-shell shebang is bypassed: runners
-        # already have curl/jq/git, and no <nixpkgs> channel is configured.
-        run: bash ./$PACKAGE_DIR/update.sh
+        run: ./$PACKAGE_DIR/update.sh
 
+      # sources.json's schema is read here rather than reported by the script,
+      # which stays a plain nixpkgs updater.
+      - name: Describe the resulting pins
+        id: pins
+        run: |
+          summary=$(jq -r '[.systems | to_entries[] | "\(.value.debArch) \(.value.version)"] | join(", ")' \
+            "$PACKAGE_DIR/sources.json")
+          echo "summary=$summary" >>"$GITHUB_OUTPUT"
+
+      # No-ops when update.sh left the tree clean.
       - uses: peter-evans/create-pull-request@v7
         with:
           branch: update-claude-desktop
-          commit-message: "chore: update claude-desktop (${{ steps.bump.outputs.summary }})"
-          title: "chore: update claude-desktop (${{ steps.bump.outputs.summary }})"
+          commit-message: "chore: update claude-desktop (${{ steps.pins.outputs.summary }})"
+          title: "chore: update claude-desktop (${{ steps.pins.outputs.summary }})"
           body: |
             Automated bump from Anthropic's apt `Packages` indexes.
 
-            Pins: ${{ steps.bump.outputs.summary }}
+            Pins: ${{ steps.pins.outputs.summary }}
 
             The systems are pinned independently, so only the one(s) with a new
             upstream release will show a diff.
