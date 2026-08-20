@@ -66,91 +66,95 @@ let
       --enable-features=WaylandWindowDecorations \
       "$@"
   '';
-in
-buildFHSEnv {
-  name = pname;
-  inherit runScript;
+  # Self-referential so passthru.tests can assert against the built package;
+  # passthru is not part of the derivation, so this does not recurse.
+  claude-desktop = buildFHSEnv {
+    name = pname;
+    inherit runScript;
 
-  targetPkgs =
-    pkgs:
-    [
-      # Lands at /usr/lib/claude-desktop inside the FHS env.
-      unwrapped
-    ]
-    ++ [
-      # The .deb's Depends:/Recommends: plus the usual Chromium runtime set.
-      alsa-lib
-      at-spi2-atk
-      at-spi2-core
-      cairo
-      cups
-      dbus
-      expat
-      fontconfig
-      freetype
-      glib
-      gtk3
-      libGL
-      libdrm
-      libgbm
-      libglvnd
-      libnotify
-      libsecret
-      libxkbcommon
-      mesa
-      nspr
-      nss
-      pango
-      systemd
-      util-linux
-      xdg-utils
+    targetPkgs =
+      pkgs:
+      [
+        # Lands at /usr/lib/claude-desktop inside the FHS env.
+        unwrapped
+      ]
+      ++ [
+        # The .deb's Depends:/Recommends: plus the usual Chromium runtime set.
+        alsa-lib
+        at-spi2-atk
+        at-spi2-core
+        cairo
+        cups
+        dbus
+        expat
+        fontconfig
+        freetype
+        glib
+        gtk3
+        libGL
+        libdrm
+        libgbm
+        libglvnd
+        libnotify
+        libsecret
+        libxkbcommon
+        mesa
+        nspr
+        nss
+        pango
+        systemd
+        util-linux
+        xdg-utils
 
-      libx11
-      libxcomposite
-      libxcursor
-      libxdamage
-      libxext
-      libxfixes
-      libxi
-      libxrandr
-      libxrender
-      libxtst
-      libxcb
-      libxshmfence
+        libx11
+        libxcomposite
+        libxcursor
+        libxdamage
+        libxext
+        libxfixes
+        libxi
+        libxrandr
+        libxrender
+        libxtst
+        libxcb
+        libxshmfence
 
-      # MCP servers are spawned as external processes; their runtimes and the
-      # shell basics they assume must be on PATH.
-      nodejs
-      python3
-      uv
-      bash
-      coreutils
-      git
-      cacert
-    ]
-    # Cowork's VM stack; see ./cowork-runtime.nix.
-    ++ coworkRuntime;
+        # MCP servers are spawned as external processes; their runtimes and the
+        # shell basics they assume must be on PATH.
+        nodejs
+        python3
+        uv
+        bash
+        coreutils
+        git
+        cacert
+      ]
+      # Cowork's VM stack; see ./cowork-runtime.nix.
+      ++ coworkRuntime;
 
-  extraInstallCommands = ''
-    mv $out/bin/${pname} $out/bin/.${pname}-fhs
-    cat > $out/bin/${pname} <<EOF
-    #!${runtimeShell}
-    cd "\$HOME" 2>/dev/null || cd /
-    exec $out/bin/.${pname}-fhs "\$@"
-    EOF
-    chmod +x $out/bin/${pname}
+    extraInstallCommands = ''
+      mv $out/bin/${pname} $out/bin/.${pname}-fhs
+      cat > $out/bin/${pname} <<EOF
+      #!${runtimeShell}
+      cd "\$HOME" 2>/dev/null || cd /
+      exec $out/bin/.${pname}-fhs "\$@"
+      EOF
+      chmod +x $out/bin/${pname}
 
-    mkdir -p $out/share
-    ln -s ${unwrapped}/share/applications $out/share/applications
-    ln -s ${unwrapped}/share/icons $out/share/icons
-  '';
+      mkdir -p $out/share
+      ln -s ${unwrapped}/share/applications $out/share/applications
+      ln -s ${unwrapped}/share/icons $out/share/icons
+    '';
 
-  passthru = {
-    inherit unwrapped;
-    # Rewrites sources.json in place, so it wants a checkout, not the store.
-    updateScript = ./update.sh;
+    passthru = {
+      inherit unwrapped runScript;
+      # Rewrites sources.json in place, so it wants a checkout, not the store.
+      updateScript = ./update.sh;
+      tests.installed-files = callPackage ./tests.nix { inherit claude-desktop; };
+    };
+
+    # buildFHSEnv does not inherit meta from its inputs.
+    inherit (unwrapped) meta;
   };
-
-  # buildFHSEnv does not inherit meta from its inputs.
-  inherit (unwrapped) meta;
-}
+in
+claude-desktop
