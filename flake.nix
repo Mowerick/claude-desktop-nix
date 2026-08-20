@@ -23,5 +23,28 @@
       overlays.default = final: prev: {
         claude-desktop = final.callPackage ./default.nix { };
       };
+
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          # update.sh's index parsing, run offline against a fixture.
+          parse-index =
+            pkgs.runCommand "claude-desktop-parse-index"
+              {
+                nativeBuildInputs = with pkgs; [
+                  bash
+                  gawk
+                  coreutils
+                ];
+              }
+              ''
+                bash ${./pkgs/claude-desktop}/tests/parse-index.sh
+                touch $out
+              '';
+        }
+      );
     };
 }
