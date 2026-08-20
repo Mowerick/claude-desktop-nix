@@ -23,6 +23,32 @@ The arm64 pin comes from Anthropic's own apt repo and the derivation evaluates,
 but it has never been built or launched — the packaging was developed on
 x86_64, and nothing here has run on arm64 hardware. Reports welcome.
 
+## Host requirements
+
+Everything the app needs is inside the FHS sandbox, with one exception: Cowork
+runs its agent sandbox in a hardware-accelerated VM, so it needs `/dev/kvm` on
+the host. The wrapper bind-mounts `/dev` into the sandbox, but it cannot create
+the device or grant access to it.
+
+- The KVM kernel modules must be loaded (`kvm` plus `kvm_intel` or `kvm_amd`),
+  which also requires hardware virtualization (Intel VT-x / AMD-V) to be
+  enabled in the firmware. Most distributions, NixOS included, load them
+  automatically on capable hardware; `lsmod | grep kvm` shows whether they are.
+- The invoking user must have access to `/dev/kvm`, which is `root:kvm` mode
+  `0660` on most distributions — so the user has to be in the `kvm` group. On
+  NixOS:
+
+  ```nix
+  users.users.<you>.extraGroups = [ "kvm" ];
+  ```
+
+  Group changes take effect on the next login. Check with
+  `test -w /dev/kvm && echo ok`.
+
+Nothing else is needed — no libvirt, no daemon. If the host is itself a virtual
+machine, nested virtualization has to be enabled on the outer hypervisor. The
+rest of the app works fine without KVM; only Cowork is affected.
+
 ## Usage
 
 ### Try it
