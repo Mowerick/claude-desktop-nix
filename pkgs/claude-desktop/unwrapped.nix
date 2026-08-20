@@ -9,21 +9,18 @@
 
 let
   # amd64 and arm64 are published independently, so each system pins its own
-  # version and hash. ./update.sh rewrites sources.json.
-  sources = lib.importJSON ./sources.json;
+  # version, url and hash. ./update.sh rewrites sources.json.
+  inherit (lib.importJSON ./sources.json) systems;
 
   source =
-    sources.${stdenv.hostPlatform.system}
+    systems.${stdenv.hostPlatform.system}
       or (throw "claude-desktop: unsupported system ${stdenv.hostPlatform.system}");
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "claude-desktop-unwrapped";
   inherit (source) version;
 
-  src = fetchurl {
-    url = "https://downloads.claude.ai/claude-desktop/apt/stable/pool/main/c/claude-desktop/claude-desktop_${finalAttrs.version}_${source.deb}.deb";
-    inherit (source) hash;
-  };
+  src = fetchurl { inherit (source) url hash; };
 
   nativeBuildInputs = [ dpkg ];
 
@@ -54,7 +51,7 @@ stdenv.mkDerivation (finalAttrs: {
     homepage = "https://claude.ai";
     license = lib.licenses.unfree;
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
-    platforms = lib.attrNames sources;
+    platforms = lib.attrNames systems;
     mainProgram = "claude-desktop";
   };
 })
