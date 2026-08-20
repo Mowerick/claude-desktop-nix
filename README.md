@@ -65,7 +65,11 @@ with:
 ./pkgs/claude-desktop/update.sh
 ```
 
-Plain bash; needs `curl`, `jq`, `git` and `nix` on `PATH`. It reads the current
+The `nix-shell` shebang pulls in `curl`, `jq`, `git` and `nix` itself, so
+nothing has to be installed first (it needs `<nixpkgs>` on `NIX_PATH`; run it
+as `bash pkgs/claude-desktop/update.sh` to use the tools already on your
+`PATH` instead). It is also wired up as `passthru.updateScript`, so a nixpkgs
+checkout can drive it with `maintainers/scripts/update.nix`. It reads the current
 version/SHA256 for each architecture straight out of Anthropic's apt `Packages`
 indexes and rewrites `default.nix` in place. Review the diff, then commit.
 

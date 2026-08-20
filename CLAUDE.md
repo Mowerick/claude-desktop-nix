@@ -22,9 +22,9 @@ one path in `update.sh`:
 - `pkgs/claude-desktop/sources.json` — `aptBaseUrl` plus per-system
   `debArch`/`version`/`url`/`hash` pins. The only module that knows how
   Anthropic's apt repo is laid out; machine-edited by `update.sh`.
-- `pkgs/claude-desktop/update.sh` — the version bumper. Splits `fetch_index`
-  (network) from `pin_from_index` (pure, reads an index on stdin), so the parse
-  can be tested offline.
+- `pkgs/claude-desktop/update.sh` — the version bumper, also exposed as
+  `passthru.updateScript`. Splits `fetch_index` (network) from `pin_from_index`
+  (pure, reads an index on stdin), so the parse can be tested offline.
 - `pkgs/claude-desktop/tests/` — `parse-index.sh` plus a `Packages` fixture with
   deliberately out-of-order versions, run as `checks.<system>.parse-index`.
 - `default.nix` — one-line `import` of `package.nix`, so
@@ -79,8 +79,14 @@ stays on the pinned version forever until someone bumps it.
 `update.sh` is the mechanism for that bump. It is repo tooling, not part of the
 package — it edits the working copy — so it stays out of the flake's apps:
 `flake.nix` exposes packages, the overlay and checks, and both a maintainer and
-CI execute the script directly. `passthru.updateScript` points at it for the
-nixpkgs convention. For each system in `sources.json` it:
+CI execute the script directly. `passthru.updateScript` points at it, so
+`nix-shell maintainers/scripts/update.nix --argstr package claude-desktop`
+would drive it once the package lives in nixpkgs. Two details follow from that
+runner: it executes update scripts with the repo root as cwd and no guaranteed
+`PATH`, so the script carries a `nix-shell` shebang for its own dependencies
+and finds `sources.json` with `git ls-files '*claude-desktop/sources.json'`
+rather than hardcoding a path that differs between here and
+`pkgs/by-name/cl/`. For each system in `sources.json` it:
 
 1. Curls that system's apt `Packages` index, built from `aptBaseUrl` +
    `dists/stable/main/binary-$debArch/Packages`. The index lists every
@@ -98,16 +104,17 @@ The systems are deliberately bumped independently: upstream publishes amd64 and
 arm64 at different times, so a shared version would either stall the arch that
 did get a release or fail the whole run during the skew window.
 
-It edits the file in the repo working copy (found via
-`git rev-parse --show-toplevel`), not the Nix store, so it only makes sense run
-from a local checkout — not meaningful via a remote flake ref. It shells out to
+It edits the file in the repo working copy, not the Nix store, so it only makes
+sense run from a local checkout — not meaningful via a remote flake ref. It shells out to
 `nix hash convert`, falling back to `nix hash to-sri` on Lix and pre-2.18 Nix.
 
 `.github/workflows/update.yml` runs `update.sh` on a daily cron (plus
 `workflow_dispatch`) and opens a PR via `peter-evans/create-pull-request`,
 which no-ops when the working tree is unchanged. The workflow never parses
 `sources.json`: the script writes `summary` and `changed` to `$GITHUB_OUTPUT`
-and the PR title consumes those. Nix is installed only for `nix hash convert`.
+and the PR title consumes those. CI runs it as `bash update.sh`, bypassing the
+`nix-shell` shebang: runners already ship curl/jq/git and have no `<nixpkgs>`
+channel. Nix is installed there only for `nix hash convert`.
 
 ## Testing changes
 
