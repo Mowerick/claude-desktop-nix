@@ -56,22 +56,22 @@ then reference `pkgs.claude-desktop` as usual.
 
 ## Updating
 
-Anthropic's apt repository has no "latest" alias — `default.nix` pins an
+Anthropic's apt repository has no "latest" alias — `sources.json` pins an
 exact versioned `.deb` URL and hash per architecture, so there's nothing that
 fails on its own when a new version ships (see `CLAUDE.md` for why). Bump it
-with:
+from the repo root with:
 
 ```
-./pkgs/claude-desktop/update.sh
+./pkgs/by-name/cl/claude-desktop/update.sh
 ```
 
-The `nix-shell` shebang pulls in `curl`, `jq`, `git` and `nix` itself, so
-nothing has to be installed first (it needs `<nixpkgs>` on `NIX_PATH`; run it
-as `bash pkgs/claude-desktop/update.sh` to use the tools already on your
+The `nix-shell` shebang pulls in `curl`, `jq` and `nix` itself, so nothing has
+to be installed first (it needs `<nixpkgs>` on `NIX_PATH`; run it as `bash
+pkgs/by-name/cl/claude-desktop/update.sh` to use the tools already on your
 `PATH` instead). It is also wired up as `passthru.updateScript`, so a nixpkgs
 checkout can drive it with `maintainers/scripts/update.nix`. It reads the current
 version/SHA256 for each architecture straight out of Anthropic's apt `Packages`
-indexes and rewrites `default.nix` in place. Review the diff, then commit.
+indexes and rewrites `sources.json` in place. Review the diff, then commit.
 
 The two architectures are pinned independently — upstream publishes amd64 and
 arm64 at their own pace, so one may sit a release behind the other.
@@ -87,8 +87,9 @@ same script daily and opens a pull request when anything changed.
 - Unfree (`license = lib.licenses.unfree`) — set
   `nixpkgs.config.allowUnfree = true` (or `allowUnfreePredicate`) wherever you
   consume this package.
-- The package lives under `pkgs/claude-desktop/`, split the way nixpkgs splits
-  such packages so it could be upstreamed with little churn.
+- The package lives under `pkgs/by-name/cl/claude-desktop/`, written to nixpkgs
+  convention so upstreaming it is a directory copy; the flake, `default.nix`
+  and CI stay outside it.
 - Unofficial: not affiliated with or endorsed by Anthropic. Packaging follows
   whatever Anthropic ships in their apt repo; behavior of the app itself is
   entirely upstream's.
