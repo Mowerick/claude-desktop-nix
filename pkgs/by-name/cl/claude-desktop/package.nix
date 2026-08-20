@@ -50,8 +50,11 @@
   nodejs,
   python3,
   uv,
+  # Cowork's VM
+  qemu,
+  virtiofsd,
   claude-desktop-unwrapped ? callPackage ./unwrapped.nix { },
-  coworkRuntime ? callPackage ./cowork-runtime.nix { },
+  ovmfLayout ? callPackage ./ovmf-layout.nix { },
 }:
 
 let
@@ -128,9 +131,16 @@ let
         coreutils
         git
         cacert
-      ]
-      # Cowork's VM stack; see ./cowork-runtime.nix.
-      ++ coworkRuntime;
+
+        # Cowork runs its sandbox in a VM: qemu-system-{x86_64,aarch64} both
+        # come from nixpkgs' qemu, virtiofsd is looked up at /usr/libexec or
+        # /usr/bin, and the firmware needs Debian's layout (see
+        # ./ovmf-layout.nix). /dev/kvm arrives via bwrap's --dev-bind, so the
+        # host user only needs to be in the kvm group.
+        qemu
+        virtiofsd
+        ovmfLayout
+      ];
 
     extraInstallCommands = ''
       mv $out/bin/${pname} $out/bin/.${pname}-fhs
