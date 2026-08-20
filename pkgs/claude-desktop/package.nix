@@ -147,7 +147,7 @@ buildFHSEnv {
 
   passthru = {
     inherit unwrapped;
-    # Rewrites sources.json in a checkout; meaningless from the store.
+    # Rewrites sources.json in place, so it wants a checkout, not the store.
     updateScript = ./update.sh;
   };
 
